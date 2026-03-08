@@ -73,7 +73,7 @@ func DoKieCallback(logger *log.Logger, h *Handler, kieResults chan models.KieRes
 						log.Printf("kie queue full, chat_id=%d dropped", chatID)
 					}
 				}
-				h.SendMessage(context.Background(), chatID, "Не удалось обработать изображение, попробуйте позже")
+				// h.SendMessage(context.Background(), chatID, "Не удалось обработать изображение, попробуйте позже")
 			}
 			return
 		}

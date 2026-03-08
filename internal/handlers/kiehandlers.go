@@ -47,28 +47,53 @@ func (h *Handler) ProcessKieTasks(ctx context.Context) {
 					}
 
 					if st.Step == "GetPhotoPrompt" {
-						fileID := st.Data[stateKeyMediaFileID]
-						if fileID == "" {
-							log.Printf("ProcessKieTasks: empty media_file_id for chat_id=%d", id)
+						var mediaURLs []string
+
+						if raw := st.Data[stateKeyMediaFileIDs]; raw != "" {
+							var fileIDs []string
+							if err := json.Unmarshal([]byte(raw), &fileIDs); err != nil {
+								log.Printf("ProcessKieTasks: bad media_file_ids json chat_id=%d: %v", id, err)
+								continue
+							}
+							for _, fid := range fileIDs {
+								u, err := h.GetUrlFromFileId(ctx, fid)
+								if err != nil {
+									log.Printf("GetUrlFromFileId chat_id=%d fid=%s: %v", id, fid, err)
+									continue
+								}
+								mediaURLs = append(mediaURLs, u)
+							}
+						} else {
+							fileID := st.Data[stateKeyMediaFileID]
+							if fileID == "" {
+								log.Printf("ProcessKieTasks: empty media_file_id for chat_id=%d", id)
+								continue
+							}
+							u, err := h.GetUrlFromFileId(ctx, fileID)
+							if err != nil {
+								log.Printf("GetUrlFromFileId chat_id=%d: %v", id, err)
+								continue
+							}
+							mediaURLs = []string{u}
+						}
+
+						if len(mediaURLs) == 0 {
+							log.Printf("ProcessKieTasks: no media URLs for chat_id=%d", id)
 							continue
 						}
-						mediaURL, err := h.GetUrlFromFileId(ctx, fileID)
-						if err != nil {
-							log.Printf("GetUrlFromFileId chat_id=%d: %v", id, err)
-							continue
-						}
+
 						prompt := st.Data[stateKeyPrompt]
 
 						if h.KieAcquire != nil {
 							h.KieAcquire()
 						}
 
-						sendErr := h.SendToNanoBananaPro(ctx, mediaURL, prompt, id)
+						sendErr := h.SendToNanoBananaPro(ctx, mediaURLs, prompt, id)
 						if sendErr != nil {
 							log.Printf("SendToNanoBananaPro chat_id=%d: %v", id, sendErr)
 							tryRequeueKieTask(h, ctx, key, st, id)
 						} else {
-							log.Printf("ProcessKieTasks: sent to kie chat_id=%d", id)
+							log.Printf("ProcessKieTasks: sent to kie chat_id=%d (%d images)", id, len(mediaURLs))
 							delete(st.Data, stateKeyKieRetry)
 							_ = h.Rd.Set(ctx, key, st, defaultStateTTL)
 						}
@@ -116,13 +141,16 @@ func (h *Handler) ProcessKieTasks(ctx context.Context) {
 						if h.KieAcquire != nil {
 							h.KieAcquire()
 						}
-						sendErr := h.SendToGeminiFlash(ctx, key, prompt, fileURL, history, id)
-						if sendErr != nil {
-							log.Printf("SendToGeminiFlash chat_id=%d: %v", id, sendErr)
-							tryRequeueKieTask(h, ctx, key, st, id)
-						} else {
-							delete(st.Data, stateKeyKieRetry)
+					sendErr := h.SendToGeminiFlash(ctx, key, prompt, fileURL, history, id)
+					if sendErr != nil {
+						log.Printf("SendToGeminiFlash chat_id=%d: %v", id, sendErr)
+						tryRequeueKieTask(h, ctx, key, st, id)
+					} else {
+						delete(st.Data, stateKeyKieRetry)
+						if _, err := h.Db.AddUsedChat(ctx, id); err != nil {
+							log.Printf("AddUsedChat chat_id=%d: %v", id, err)
 						}
+					}
 					}
 				}
 			}
@@ -220,7 +248,7 @@ func (h *Handler) SendToGeminiFlash(ctx context.Context, key, prompt, fileURL st
 		return fmt.Errorf("gemini api: no reply")
 	}
 	replyText := strings.TrimSpace(out.Choices[0].Message.Content)
-	if err := h.SendMessage(ctx, chatID, replyText); err != nil {
+	if _, err := h.SendMessage(ctx, chatID, replyText); err != nil {
 		log.Printf("SendToGeminiFlash sendMessage: %v", err)
 		st.Step = stateStepAwaitText
 		_ = h.Rd.Set(ctx, key, st, defaultStateTTL)
@@ -245,7 +273,7 @@ func (h *Handler) SendToGeminiFlash(ctx context.Context, key, prompt, fileURL st
 	return nil
 }
 
-func (h *Handler) SendToNanoBananaPro(ctx context.Context, mediaURL, prompt string, id int64) error {
+func (h *Handler) SendToNanoBananaPro(ctx context.Context, mediaURLs []string, prompt string, id int64) error {
 	if h.KieAPIKey == "" {
 		return fmt.Errorf("KIE_API_KEY not set")
 	}
@@ -258,7 +286,7 @@ func (h *Handler) SendToNanoBananaPro(ctx context.Context, mediaURL, prompt stri
 		"callBackUrl": h.KieCallbackURL,
 		"input": map[string]any{
 			"prompt":        prompt,
-			"image_input":   []string{mediaURL},
+			"image_input":   mediaURLs,
 			"aspect_ratio":  "auto",
 			"resolution":    "2K",
 			"output_format": "png",

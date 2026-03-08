@@ -13,11 +13,11 @@ type Server struct {
 	srv *http.Server
 }
 
-func NewServer(addr, secret string, logger *log.Logger, updates chan models.Update, handler *handlers.Handler, kieResults chan models.KieResult) *Server {
+func NewServer(addr, secret string, logger *log.Logger, updates chan models.Update, handler *handlers.Handler, kieResults chan models.KieResult, YouMoneyResult chan models.YouMoneyResult) *Server {
 	return &Server{
 		srv: &http.Server{
 			Addr:              addr,
-			Handler:           newRouter(secret, logger, updates, handler, kieResults),
+			Handler:           newRouter(secret, logger, updates, handler, kieResults, YouMoneyResult),
 			ReadHeaderTimeout: 5 * time.Second,
 			ReadTimeout:       10 * time.Second,
 			WriteTimeout:      10 * time.Second,

@@ -61,7 +61,7 @@ func main() {
 	defer kieCancel()
 	kieLimiter.StartRefill(kieCtx)
 
-	handler := handlers.NewHandler(store, db, cfg.BotToken, cfg.KieAPIKey, cfg.KieCallbackURL, cfg.ChannelID, cfg.ChannelLink, kieTasks, kieLimiter.Acquire)
+	handler := handlers.NewHandler(store, db, cfg.BotToken, cfg.KieAPIKey, cfg.KieCallbackURL, cfg.ChannelID, cfg.ChannelLink, kieTasks, kieLimiter.Acquire, cfg.YouKassaID, cfg.YouKassaSecretKey, cfg.YouKassaReturnURL)
 
 	var updateBuf = 10000
 	var numUpdateWorkers = 32
@@ -96,15 +96,26 @@ func main() {
 			defer kieWg.Done()
 			for res := range kieResults {
 				ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-				if res.ImageURL == "" {
-					if err := handler.SendMessage(ctx, res.ChatID, res.Text); err != nil {
-						logger.Printf("SendMessage chat_id=%d: %v", res.ChatID, err)
-					}
-				} else {
-					if err := handler.SendPhoto(ctx, res.ChatID, res.ImageURL); err != nil {
-						logger.Printf("SendPhoto chat_id=%d: %v", res.ChatID, err)
-					}
+				if err := handler.SendPhoto(ctx, res.ChatID, res.ImageURL); err != nil {
+					logger.Printf("SendPhoto chat_id=%d: %v", res.ChatID, err)
 				}
+				handler.Db.AddUsedPhoto(ctx, res.ChatID)
+				cancel()
+			}
+		}()
+	}
+
+	var YouMoneyResultBuf = 10000
+	var YouMoneyResultWorkers = 32
+	YouMoneyResult := make(chan models.YouMoneyResult, YouMoneyResultBuf)
+
+	for i := 0; i < YouMoneyResultWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for res := range YouMoneyResult {
+				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				handler.HandlePayment(ctx, res)
 				cancel()
 			}
 		}()
@@ -117,7 +128,7 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	srv := server.NewServer(cfg.ListenAddr, cfg.SecretToken, logger, updates, handler, kieResults)
+	srv := server.NewServer(cfg.ListenAddr, cfg.SecretToken, logger, updates, handler, kieResults, YouMoneyResult)
 
 	go func() {
 		logger.Printf("listening on %s", cfg.ListenAddr)
@@ -141,6 +152,7 @@ func main() {
 	close(kieResults)
 	kieWg.Wait()
 	close(updates)
+	close(YouMoneyResult)
 	wg.Wait()
 	logger.Println("stopped")
 }

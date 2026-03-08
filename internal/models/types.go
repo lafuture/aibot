@@ -1,6 +1,8 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
 // MessageChat — чат в сообщении.
 type MessageChat struct {
@@ -22,12 +24,14 @@ type Document struct {
 
 // MessageContent — содержимое сообщения (текст, фото, документ, подпись).
 type MessageContent struct {
-	Text     string        `json:"text"`
-	Chat     MessageChat   `json:"chat"`
-	From     *TelegramUser `json:"from,omitempty"`
-	Photo    []PhotoSize   `json:"photo,omitempty"`
-	Document *Document     `json:"document,omitempty"`
-	Caption  string        `json:"caption,omitempty"`
+	MessageID    int           `json:"message_id"`
+	Text         string        `json:"text"`
+	Chat         MessageChat   `json:"chat"`
+	From         *TelegramUser `json:"from,omitempty"`
+	Photo        []PhotoSize   `json:"photo,omitempty"`
+	Document     *Document     `json:"document,omitempty"`
+	Caption      string        `json:"caption,omitempty"`
+	MediaGroupID string        `json:"media_group_id,omitempty"`
 }
 
 // CallbackQuery — нажатие на inline-кнопку.
@@ -122,17 +126,16 @@ type User struct {
 	Statuses string `json:"statuses"`
 
 	Subscription        string    `json:"subscription"`
-	SubscriptionStatus  string    `json:"subscription_status"`
 	SubscriptionEndAt   time.Time `json:"subscription_end_at"`
 	SubscriptionStartAt time.Time `json:"subscription_start_at"`
 
-	LimitsPhoto      int `json:"limits_photo"`
-	LimitsChat      int `json:"limits_chat"`
-	RemainingPhoto   int `json:"remaining_photo"`
-	RemainingChat   int `json:"remaining_chat"`
-	UsedPhoto int `json:"used_photo"`
-	UsedChat int `json:"used_chat"`
-	UsedTrial   int `json:"used_trial"`
+	LimitsPhoto    int `json:"limits_photo"`
+	LimitsChat     int `json:"limits_chat"`
+	RemainingPhoto int `json:"remaining_photo"`
+	RemainingChat  int `json:"remaining_chat"`
+	UsedPhoto      int `json:"used_photo"`
+	UsedChat       int `json:"used_chat"`
+	UsedTrial      int `json:"used_trial"`
 }
 
 type HistoryEntry struct {
@@ -151,4 +154,11 @@ type ChatCompletionResponse struct {
 			Role    string `json:"role"`
 		} `json:"message"`
 	} `json:"choices"`
+}
+
+type YouMoneyResult struct {
+	ChatID      int64
+	Status      string
+	Description string
+	MessageID   int
 }

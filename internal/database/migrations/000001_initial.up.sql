@@ -7,7 +7,6 @@ CREATE TABLE users (
         statuses      VARCHAR(50),
 
         subscription          VARCHAR(50),
-        subscription_status   VARCHAR(50),
         subscription_end_at   TIMESTAMPTZ,
         subscription_start_at TIMESTAMPTZ,
 
