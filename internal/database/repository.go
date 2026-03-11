@@ -10,9 +10,9 @@ import (
 const (
 	TrialPhotoLimit   = 3
 	TrialChatLimit    = 10
-	LitePhotoLimit    = 10
+	LitePhotoLimit    = 15
 	LiteChatLimit     = 1000
-	PremiumPhotoLimit = 50
+	PremiumPhotoLimit = 70
 	PremiumChatLimit  = 1000
 )
 

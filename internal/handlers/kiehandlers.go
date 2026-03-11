@@ -4,6 +4,7 @@ import (
 	"aibot/internal/models"
 	"aibot/internal/state"
 	"archive/zip"
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -141,16 +142,18 @@ func (h *Handler) ProcessKieTasks(ctx context.Context) {
 						if h.KieAcquire != nil {
 							h.KieAcquire()
 						}
-					sendErr := h.SendToGeminiFlash(ctx, key, prompt, fileURL, history, id)
-					if sendErr != nil {
-						log.Printf("SendToGeminiFlash chat_id=%d: %v", id, sendErr)
-						tryRequeueKieTask(h, ctx, key, st, id)
-					} else {
-						delete(st.Data, stateKeyKieRetry)
-						if _, err := h.Db.AddUsedChat(ctx, id); err != nil {
-							log.Printf("AddUsedChat chat_id=%d: %v", id, err)
+						timeNow := time.Now()
+						sendErr := h.SendToGeminiFlash(ctx, key, prompt, fileURL, history, id)
+						log.Printf("SendToGeminiFlash chat_id=%d: %v", id, time.Since(timeNow))
+						if sendErr != nil {
+							log.Printf("SendToGeminiFlash chat_id=%d: %v", id, sendErr)
+							tryRequeueKieTask(h, ctx, key, st, id)
+						} else {
+							delete(st.Data, stateKeyKieRetry)
+							if _, err := h.Db.AddUsedChat(ctx, id); err != nil {
+								log.Printf("AddUsedChat chat_id=%d: %v", id, err)
+							}
 						}
-					}
 					}
 				}
 			}
@@ -170,7 +173,7 @@ func (h *Handler) SendToGeminiFlash(ctx context.Context, key, prompt, fileURL st
 		return fmt.Errorf("KIE_API_KEY not set")
 	}
 	messages := []map[string]any{
-		{"role": "system", "content": "История переписки приведена только для контекста. Отвечай строго на последнее сообщение пользователя. Не перечисляй и не повторяй ответы на предыдущие вопросы. Пиши без звёздочек и маркеров, без выделения жирным, разделяй информацию на абзацы."},
+		{"role": "system", "content": "Строго запрещено: эмодзи, смайлики, Unicode-символы кроме букв и цифр. Используй только переносы строк для разделения абзацев. Не представляйся и не называй себя (Gemini, ассистент и т.п.). Не заканчивай ответ вопросом к пользователю. Отвечай только по существу. История переписки приведена только для контекста. Отвечай строго на последнее сообщение пользователя. Не перечисляй и не повторяй ответы на предыдущие вопросы."},
 	}
 	// История уже содержит текущее сообщение пользователя; последнее добавляем отдельно с разрешённым fileURL
 	n := len(history)
@@ -195,10 +198,10 @@ func (h *Handler) SendToGeminiFlash(ctx context.Context, key, prompt, fileURL st
 		messages = append(messages, map[string]any{"role": "user", "content": prompt})
 	}
 	body := map[string]any{
-		"messages":          messages,
-		"stream":            false,
-		"include_thoughts":  false,
-		"reasoning_effort":  "high",
+		"messages":         messages,
+		"stream":           true,
+		"include_thoughts": false,
+		"reasoning_effort": "low",
 	}
 	raw, err := json.Marshal(body)
 	if err != nil {
@@ -206,7 +209,7 @@ func (h *Handler) SendToGeminiFlash(ctx context.Context, key, prompt, fileURL st
 		_ = h.Rd.Set(ctx, key, st, shortStateTTL)
 		return err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.kie.ai/gemini-3-flash/v1/chat/completions", bytes.NewReader(raw))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.kie.ai/gpt-5-2/v1/chat/completions", bytes.NewReader(raw))
 	if err != nil {
 		st.Step = stateStepAwaitText
 		_ = h.Rd.Set(ctx, key, st, shortStateTTL)
@@ -222,38 +225,84 @@ func (h *Handler) SendToGeminiFlash(ctx context.Context, key, prompt, fileURL st
 		return err
 	}
 	defer resp.Body.Close()
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		st.Step = stateStepAwaitText
-		_ = h.Rd.Set(ctx, key, st, defaultStateTTL)
-		return err
-	}
+
 	if resp.StatusCode != http.StatusOK {
 		st.Step = stateStepAwaitText
 		_ = h.Rd.Set(ctx, key, st, defaultStateTTL)
-		log.Printf("SendToGeminiFlash: status %d body=%s", resp.StatusCode, string(respBody))
+		log.Printf("SendToGeminiFlash: status %d", resp.StatusCode)
 		return fmt.Errorf("gemini api: status %d", resp.StatusCode)
 	}
-	var out models.ChatCompletionResponse
-	if err := json.Unmarshal(respBody, &out); err != nil {
-		log.Printf("SendToGeminiFlash: unmarshal %v body=%s", err, string(respBody))
-		st.Step = stateStepAwaitText
-		_ = h.Rd.Set(ctx, key, st, defaultStateTTL)
-		return err
+
+	t0 := time.Now()
+	replyText := ""
+	var MessageID int
+	var lastEditAt time.Time
+	var ttft, tFirstMsg time.Duration
+
+	scanner := bufio.NewScanner(resp.Body)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.HasPrefix(line, "data: ") {
+			continue
+		}
+		data := strings.TrimPrefix(line, "data: ")
+		if data == "[DONE]" {
+			break
+		}
+		var chunk struct {
+			Choices []struct {
+				Delta struct {
+					Content string `json:"content"`
+				} `json:"delta"`
+			} `json:"choices"`
+		}
+		json.Unmarshal([]byte(data), &chunk)
+
+		if replyText == "" {
+			if len(chunk.Choices) > 0 && len(chunk.Choices[0].Delta.Content) != 0 {
+				if ttft == 0 {
+					ttft = time.Since(t0)
+				}
+				m, err := h.SendMessage(ctx, chatID, chunk.Choices[0].Delta.Content)
+				if err != nil {
+					log.Printf("SendToGeminiFlash sendMessage: %v", err)
+					st.Step = stateStepAwaitText
+					_ = h.Rd.Set(ctx, key, st, defaultStateTTL)
+					return err
+				}
+				tFirstMsg = time.Since(t0)
+				replyText += chunk.Choices[0].Delta.Content
+				MessageID = m
+				lastEditAt = time.Now()
+			}
+		} else {
+			oldReplytext := replyText
+			if len(chunk.Choices) > 0 && len(chunk.Choices[0].Delta.Content) != 0 {
+				replyText += chunk.Choices[0].Delta.Content
+			}
+
+			if time.Since(lastEditAt) > 500*time.Millisecond && oldReplytext != replyText {
+				err := h.editMessage(ctx, chatID, MessageID, replyText)
+				if err != nil {
+					log.Printf("SendToGeminiFlash sendMessage: %v", err)
+					st.Step = stateStepAwaitText
+					_ = h.Rd.Set(ctx, key, st, defaultStateTTL)
+				}
+				lastEditAt = time.Now()
+			}
+		}
 	}
-	if len(out.Choices) == 0 || out.Choices[0].Message.Content == "" {
-		log.Printf("SendToGeminiFlash: no choices or empty content body=%s", string(respBody))
-		st.Step = stateStepAwaitText
-		_ = h.Rd.Set(ctx, key, st, defaultStateTTL)
-		return fmt.Errorf("gemini api: no reply")
-	}
-	replyText := strings.TrimSpace(out.Choices[0].Message.Content)
-	if _, err := h.SendMessage(ctx, chatID, replyText); err != nil {
+
+	if err := h.editMessage(ctx, chatID, MessageID, replyText); err != nil {
 		log.Printf("SendToGeminiFlash sendMessage: %v", err)
 		st.Step = stateStepAwaitText
 		_ = h.Rd.Set(ctx, key, st, defaultStateTTL)
-		return err
 	}
+
+	tStreamEnd := time.Since(t0)
+	log.Printf("SendToGeminiFlash chat_id=%d: TTFT=%v firstMsg=%v total=%v len=%d",
+		chatID, ttft, tFirstMsg, tStreamEnd, len(replyText))
 
 	historyJSON := st.Data[stateKeyHistory]
 	var hist []models.HistoryEntry
@@ -269,7 +318,7 @@ func (h *Handler) SendToGeminiFlash(ctx context.Context, key, prompt, fileURL st
 	st.Step = stateStepAwaitText
 	delete(st.Data, stateKeyDocumentFileID)
 	delete(st.Data, "document_file_name")
-	_ = h.Rd.Set(ctx, key, st, defaultStateTTL)
+	_ = h.Rd.Set(ctx, key, st, shortStateTTL)
 	return nil
 }
 
@@ -282,7 +331,7 @@ func (h *Handler) SendToNanoBananaPro(ctx context.Context, mediaURLs []string, p
 	}
 
 	body := map[string]any{
-		"model":       "nano-banana-pro",
+		"model":       "nano-banana-2",
 		"callBackUrl": h.KieCallbackURL,
 		"input": map[string]any{
 			"prompt":        prompt,

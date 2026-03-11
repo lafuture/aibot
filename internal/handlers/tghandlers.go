@@ -67,25 +67,25 @@ const (
 	stateStepGetTextPrompt  = "GetTextPrompt"
 
 	// Сообщения бота
-	msgMainMenuGreeting    = "<tg-emoji emoji-id=\"4997289591011544358\">⚡️</tg-emoji> Главное меню\n\n <tg-emoji emoji-id=\"5370607250731718891\">📸</tg-emoji> Осталось генераций фото: %v\n<tg-emoji emoji-id=\"5386691718571646404\">💬</tg-emoji> Осталось генераций чата: %v"
-	msgSubscribeToGetTrial = "<tg-emoji emoji-id=\"5420323339723881652\">‼️</tg-emoji> Чтобы получить бесплатные генерации необходимо подписаться на канал"
-	msgSubscribeToUse      = "‼️ Для использования бота необходимо подписаться на канал"
-	msgNotSubscribed       = "❌ Вы не подписались"
-	msgSupport             = "<tg-emoji emoji-id=\"5226876951855113572\">😇</tg-emoji> Поддержка\n\n <tg-emoji emoji-id=\"5406745015365943482\">⏬</tg-emoji> Перейдите по кнопке ниже чтобы связаться с нами"
-	msgInstructionPhoto    = "<tg-emoji emoji-id=\"5370607250731718891\">📸</tg-emoji> Для обработки или генерации изображения пришлите запрос с медиа или без"
-	msgInstructionChat     = "<tg-emoji emoji-id=\"5386691718571646404\">💬</tg-emoji>  Для получения ответа на ваш запрос напишите его в чат"
-	msgPaymentSuccess      = "<tg-emoji emoji-id=\"5298780919207844086\">✅</tg-emoji> Подписка успешно приобретена!"
-	msgPayLink             = "<tg-emoji emoji-id=\"5386757680679377085\">💵</tg-emoji> Оплатите по ссылке ниже"
-	msgPayMethodSelect     = "Нажмите «Оплатить» для перехода к оплате."
-	msgPayCreateError      = "<tg-emoji emoji-id=\"5420323339723881652\">‼️</tg-emoji> Не удалось создать платёж. Попробуйте позже."
-	msgPayLinkError        = "<tg-emoji emoji-id=\"5420323339723881652\">‼️</tg-emoji> Не удалось получить ссылку на оплату. Попробуйте позже."
-	msgNoSubscription      = "отсутствует"
-	msgDefaultPhotoPrompt  = "Что на изображении?"
-	msgDefaultDocPrompt    = "Что в документе?"
-	msgNoPhotoLeft         = "<tg-emoji emoji-id=\"5420323339723881652\">‼️</tg-emoji> У вас закончились генерации фото. Приобретите подписку для продолжения."
-	msgNoChatLeft          = "<tg-emoji emoji-id=\"5420323339723881652\">‼️</tg-emoji> У вас закончились генерации чата. Приобретите подписку для продолжения."
-	msgSubProfileTemplate     = "<tg-emoji emoji-id=\"5373012449597335010\">👤</tg-emoji> Профиль\n\n<tg-emoji emoji-id=\"5413887962591026442\">💎</tg-emoji> Подписка: %s\n<tg-emoji emoji-id=\"5386415655253730366\">⏳</tg-emoji> Осталось: %s"
-	msgNoSubProfileTemplate     = "<tg-emoji emoji-id=\"5373012449597335010\">👤</tg-emoji> Профиль\n\n<tg-emoji emoji-id=\"5413887962591026442\">💎</tg-emoji> Подписка: %s"
+	msgMainMenuGreeting     = "<tg-emoji emoji-id=\"4997289591011544358\">⚡️</tg-emoji> Главное меню\n\n <tg-emoji emoji-id=\"5370607250731718891\">📸</tg-emoji> Осталось генераций фото: %v\n<tg-emoji emoji-id=\"5386691718571646404\">💬</tg-emoji> Осталось генераций чата: %v"
+	msgSubscribeToGetTrial  = "<tg-emoji emoji-id=\"5420323339723881652\">‼️</tg-emoji> Чтобы получить бесплатные генерации необходимо подписаться на канал"
+	msgSubscribeToUse       = "‼️ Для использования бота необходимо подписаться на канал"
+	msgNotSubscribed        = "❌ Вы не подписались"
+	msgSupport              = "<tg-emoji emoji-id=\"5226876951855113572\">😇</tg-emoji> Поддержка\n\n <tg-emoji emoji-id=\"5406745015365943482\">⏬</tg-emoji> Перейдите по кнопке ниже чтобы связаться с нами"
+	msgInstructionPhoto     = "<tg-emoji emoji-id=\"5370607250731718891\">📸</tg-emoji> Для обработки или генерации изображения пришлите запрос с медиа или без"
+	msgInstructionChat      = "<tg-emoji emoji-id=\"5386691718571646404\">💬</tg-emoji>  Для получения ответа на ваш запрос напишите его в чат"
+	msgPaymentSuccess       = "<tg-emoji emoji-id=\"5298780919207844086\">✅</tg-emoji> Подписка успешно приобретена!"
+	msgPayLink              = "<tg-emoji emoji-id=\"5386757680679377085\">💵</tg-emoji> Оплатите по ссылке ниже"
+	msgPayMethodSelect      = "Нажмите «Оплатить» для перехода к оплате."
+	msgPayCreateError       = "<tg-emoji emoji-id=\"5420323339723881652\">‼️</tg-emoji> Не удалось создать платёж. Попробуйте позже."
+	msgPayLinkError         = "<tg-emoji emoji-id=\"5420323339723881652\">‼️</tg-emoji> Не удалось получить ссылку на оплату. Попробуйте позже."
+	msgNoSubscription       = "отсутствует"
+	msgDefaultPhotoPrompt   = "Что на изображении?"
+	msgDefaultDocPrompt     = "Что в документе?"
+	msgNoPhotoLeft          = "<tg-emoji emoji-id=\"5420323339723881652\">‼️</tg-emoji> У вас закончились генерации фото. Приобретите подписку для продолжения."
+	msgNoChatLeft           = "<tg-emoji emoji-id=\"5420323339723881652\">‼️</tg-emoji> У вас закончились генерации чата. Приобретите подписку для продолжения."
+	msgSubProfileTemplate   = "<tg-emoji emoji-id=\"5373012449597335010\">👤</tg-emoji> Профиль\n\n<tg-emoji emoji-id=\"5413887962591026442\">💎</tg-emoji> Подписка: %s\n<tg-emoji emoji-id=\"5386415655253730366\">⏳</tg-emoji> Осталось: %s"
+	msgNoSubProfileTemplate = "<tg-emoji emoji-id=\"5373012449597335010\">👤</tg-emoji> Профиль\n\n<tg-emoji emoji-id=\"5413887962591026442\">💎</tg-emoji> Подписка: %s"
 
 	// Тексты кнопок
 	btnMakePhoto       = "📸 Сделать фото"
@@ -105,7 +105,7 @@ const (
 
 	// Суммы
 	amountLite    = 99
-	amountPremium = 359
+	amountPremium = 349
 
 	// Стикеры
 	stickerProcessingFileID = "CAACAgEAAxkBAAFDzohpqBdOnUhQJ-6arIQOV9OK3GEdxwACLQIAAqcjIUQ9QDDJ7YO0tjoE"
@@ -265,9 +265,9 @@ func (h *Handler) deleteMessage(ctx context.Context, chatID int64, messageID int
 func (h *Handler) sendAnimationWithCaptionAndKeyboard(ctx context.Context, chatID int64, gifURL, caption string, markup models.InlineKeyboardMarkup) error {
 	apiURL := "https://api.telegram.org/bot" + h.Token + "/sendAnimation"
 	body := map[string]any{
-		"chat_id":   chatID,
-		"animation": gifURL,
-		"caption":   caption,
+		"chat_id":    chatID,
+		"animation":  gifURL,
+		"caption":    caption,
 		"parse_mode": "HTML",
 	}
 	if len(markup.InlineKeyboard) > 0 {
@@ -320,8 +320,8 @@ func (h *Handler) sendAnimationWithCaptionAndKeyboard(ctx context.Context, chatI
 func (h *Handler) sendMessageWithInlineKeyboard(ctx context.Context, chatID int64, text string, markup models.InlineKeyboardMarkup) (int, error) {
 	apiURL := "https://api.telegram.org/bot" + h.Token + "/sendMessage"
 	body := map[string]any{
-		"chat_id": chatID,
-		"text":    text,
+		"chat_id":    chatID,
+		"text":       text,
 		"parse_mode": "HTML",
 	}
 	if len(markup.InlineKeyboard) > 0 {
@@ -371,9 +371,9 @@ func (h *Handler) sendMessageWithInlineKeyboard(ctx context.Context, chatID int6
 func (h *Handler) sendPhotoWithCaptionAndKeyboard(ctx context.Context, chatID int64, photoURL, caption string, markup models.InlineKeyboardMarkup) (int, error) {
 	apiURL := "https://api.telegram.org/bot" + h.Token + "/sendPhoto"
 	body := map[string]any{
-		"chat_id": chatID,
-		"photo":   photoURL,
-		"caption": caption,
+		"chat_id":    chatID,
+		"photo":      photoURL,
+		"caption":    caption,
 		"parse_mode": "HTML",
 	}
 	if len(markup.InlineKeyboard) > 0 {
@@ -444,6 +444,33 @@ func (h *Handler) editMessageCaptionWithKeyboard(ctx context.Context, chatID int
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("telegram editMessageCaption: status %d", resp.StatusCode)
+	}
+	return nil
+}
+func (h *Handler) editMessage(ctx context.Context, chatID int64, messageID int, text string) error {
+	apiURL := "https://api.telegram.org/bot" + h.Token + "/editMessageText"
+	body := map[string]any{
+		"chat_id":    chatID,
+		"message_id": messageID,
+		"text":       text,
+	}
+	raw, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewReader(raw))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("telegram editMessage: status %d", resp.StatusCode)
 	}
 	return nil
 }
@@ -649,7 +676,7 @@ func (h *Handler) handleStart(ctx context.Context, chatID int64, msg *models.Mes
 			}
 			_ = h.deleteMessage(ctx, chatID, animationMessageIDInt)
 		}
-		
+
 		h.sendMainMenu(ctx, chatID)
 		return
 	}
@@ -1019,7 +1046,10 @@ func (h *Handler) handlePayConfirm(ctx context.Context, callbackID string, chatI
 
 	payment := h.CreatePayment(amount, stbot.Data["plan"])
 	if payment == nil || payment.ID == "" {
-		_ = h.editMessageCaptionWithKeyboard(ctx, chatID, messageID, msgPayCreateError, h.mainMenuMarkup())
+		_, err := h.SendMessage(ctx, chatID, msgPayCreateError)
+		if err != nil {
+			log.Printf("SendMessage chat_id=%d: %v", chatID, err)
+		}
 		return
 	}
 
@@ -1054,7 +1084,10 @@ func (h *Handler) handlePayConfirm(ctx context.Context, callbackID string, chatI
 	}
 
 	if payURL == "" {
-		_ = h.editMessageCaptionWithKeyboard(ctx, chatID, messageID, msgPayLinkError, h.mainMenuMarkup())
+		_, err := h.SendMessage(ctx, chatID, msgPayLinkError)
+		if err != nil {
+			log.Printf("SendMessage chat_id=%d: %v", chatID, err)
+		}
 		return
 	}
 
@@ -1318,7 +1351,6 @@ func (h *Handler) saveTextAndFileIfPresent(ctx context.Context, key string, chat
 		return false
 	}
 	log.Printf("saved to Redis chat_id=%d prompt_len=%d (AI ЧАТ)", chatID, len(text))
-
 
 	if msgID, err := h.sendSticker(ctx, chatID, stickerProcessingFileID); err != nil {
 		log.Printf("sendSticker: %v", err)
