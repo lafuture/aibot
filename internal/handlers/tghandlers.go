@@ -45,6 +45,11 @@ const (
 	callbackPayConfirm         = "pay_confirm"
 	callbackPayCancelPrefix    = "pay_cancel:"
 
+	// Модели для фото (пользовательские эталоны)
+	callbackMakeModel   = "make_model"
+	callbackModelStatus = "model_cur"   // текущая модель (инфо по нажатию)
+	callbackResetModel  = "model_reset" // сброс эталона модели
+
 	// TTL и таймеры
 	defaultStateTTL = 24 * time.Hour
 	shortStateTTL   = 1 * time.Hour
@@ -60,20 +65,31 @@ const (
 	stateKeyDocumentFileID = "document_file_id"
 	stateKeyKieRetry       = "kie_retry"
 
+	// Пользовательские модели для фото (JSON в state)
+	stateKeyPhotoModelsJSON           = "photo_models_json"
+	stateKeyPendingModelName          = "pending_model_name"
+	stateKeySelectedPhotoModel        = "selected_photo_model_id" // legacy, при сохранении одной модели очищается
+	stateKeyPhotoInstructionMsgID     = "photo_instruction_msg_id"
+	stateKeyModelCreateEnterNameMsgID = "model_create_enter_name_msg_id" // сообщение «Введите имя модели»
+	stateKeyModelCreateSendPhotoMsgID = "model_create_send_photo_msg_id" // сообщение «Пришлите фото модели»
+	stateKeyModelPromptOnly           = "model_prompt_only"              // при модели: только промпт, без референса
+
 	// Redis state steps
-	stateStepAwaitMedia     = "await_photo_prompt"
-	stateStepGetPhotoPrompt = "get_photo_prompt"
-	stateStepAwaitText      = "await_text"
-	stateStepGetTextPrompt  = "GetTextPrompt"
+	stateStepAwaitMedia      = "await_photo_prompt"
+	stateStepGetPhotoPrompt  = "get_photo_prompt"
+	stateStepAwaitText       = "await_text"
+	stateStepGetTextPrompt   = "GetTextPrompt"
+	stateStepAwaitModelName  = "await_model_name"
+	stateStepAwaitModelPhoto = "await_model_photo"
 
 	// Сообщения бота
-	msgMainMenuGreeting     = "<tg-emoji emoji-id=\"4997289591011544358\">⚡️</tg-emoji> Главное меню\n\n <tg-emoji emoji-id=\"5370607250731718891\">📸</tg-emoji> Осталось генераций фото: %v\n<tg-emoji emoji-id=\"5386691718571646404\">💬</tg-emoji> Осталось генераций чата: %v"
+	msgMainMenuGreeting     = "<tg-emoji emoji-id=\"5391277996319475346\">💜</tg-emoji> Главное меню\n\n <tg-emoji emoji-id=\"5370607250731718891\">📸</tg-emoji> Осталось генераций фото: %v\n<tg-emoji emoji-id=\"5386691718571646404\">💬</tg-emoji> Осталось генераций чата: %v"
 	msgSubscribeToGetTrial  = "<tg-emoji emoji-id=\"5420323339723881652\">‼️</tg-emoji> Чтобы получить бесплатные генерации необходимо подписаться на канал"
 	msgSubscribeToUse       = "‼️ Для использования бота необходимо подписаться на канал"
 	msgNotSubscribed        = "❌ Вы не подписались"
 	msgSupport              = "<tg-emoji emoji-id=\"5226876951855113572\">😇</tg-emoji> Поддержка\n\n <tg-emoji emoji-id=\"5406745015365943482\">⏬</tg-emoji> Перейдите по кнопке ниже чтобы связаться с нами"
-	msgInstructionPhoto     = "<tg-emoji emoji-id=\"5370607250731718891\">📸</tg-emoji> Для обработки или генерации изображения пришлите запрос с медиа или без"
-	msgInstructionChat      = "<tg-emoji emoji-id=\"5386691718571646404\">💬</tg-emoji>  Для получения ответа на ваш запрос напишите его в чат"
+	msgInstructionPhoto     = "<tg-emoji emoji-id=\"5370607250731718891\">📸</tg-emoji> Пришлите запрос с медиа или установите модель и пришлите референс с описанием или без.\n\n<blockquote>Примеры запросов: \n<i>- Поменяй цвет волос на рыжий</i> \n<i>- Сделай меня привлекательней </i>\n<i>- Добавь к моему селфи Эпштейна </i>\n\n<i>Чем подробнее запрос тем лучше результат</i></blockquote>\n"
+	msgInstructionChat      = "<tg-emoji emoji-id=\"5386691718571646404\">💬</tg-emoji> Для получения ответа на ваш запрос напишите его в чат\n\n<blockquote>Примеры запросов: \n<i>- Придумай промпт по этому фото</i> \n<i>- Придумай идеи для фотосессии </i>\n<i>- Придумай описание для этого фото </i>\n\n<i>Чем подробнее запрос тем лучше результат</i></blockquote>"
 	msgPaymentSuccess       = "<tg-emoji emoji-id=\"5298780919207844086\">✅</tg-emoji> Подписка успешно приобретена!"
 	msgPayLink              = "<tg-emoji emoji-id=\"5386757680679377085\">💵</tg-emoji> Оплатите по ссылке ниже"
 	msgPayMethodSelect      = "Нажмите «Оплатить» для перехода к оплате."
@@ -86,6 +102,12 @@ const (
 	msgNoChatLeft           = "<tg-emoji emoji-id=\"5420323339723881652\">‼️</tg-emoji> У вас закончились генерации чата. Приобретите подписку для продолжения."
 	msgSubProfileTemplate   = "<tg-emoji emoji-id=\"5373012449597335010\">👤</tg-emoji> Профиль\n\n<tg-emoji emoji-id=\"5413887962591026442\">💎</tg-emoji> Подписка: %s\n<tg-emoji emoji-id=\"5386415655253730366\">⏳</tg-emoji> Осталось: %s"
 	msgNoSubProfileTemplate = "<tg-emoji emoji-id=\"5373012449597335010\">👤</tg-emoji> Профиль\n\n<tg-emoji emoji-id=\"5413887962591026442\">💎</tg-emoji> Подписка: %s"
+
+	msgPhotoModelEnterName   = "Введите имя модели"
+	msgPhotoModelSendPhoto   = "Пришлите фото модели (чем больше фото с разных ракурсов, тем лучше результат)"
+	msgPhotoModelSaved       = "<tg-emoji emoji-id=\"5298780919207844086\">✅</tg-emoji> Модель сохранена. Пришлите референс с описанием или без."
+	msgPhotoModelPickName    = "Сначала отправьте название текстом."
+	msgInstructionPhotoModel = "<tg-emoji emoji-id=\"5370607250731718891\">📸</tg-emoji> Модель (вы) задана. Варианты:\n\n• Фото референса (сцена) с подписью или без — например «сделай меня на пляже»\n• Только текст — опишите желаемое изображение без референса"
 
 	// Тексты кнопок
 	btnMakePhoto       = "📸 Сделать фото"
@@ -102,6 +124,9 @@ const (
 	btnGoToPay         = "🔗 Перейти к оплате"
 	btnCancelPay       = "❌ Отменить платёж"
 	btnSupport         = "💬 Написать"
+	btnSetNewModel     = "➕ Установить новую модель"
+	btnResetModel      = "✖️ Сбросить модель"
+	btnModelNotSet     = "👤 Модель: не выбрана"
 
 	// Суммы
 	amountLite    = 99
@@ -112,7 +137,7 @@ const (
 
 	// URLs
 	subscribeGifURL = "https://s13.gifyu.com/images/bvlVB.gif"
-	balooAIimageURL = "https://i.postimg.cc/Nfh87p10/1772617963019-vmar016bf7r.png"
+	balooAIimageURL = "https://i.postimg.cc/g0YGKkcM/1774483351962-yawrfnuj1ir.png"
 )
 
 // Тексты тарифов подписки (описание в сообщении).
@@ -124,8 +149,8 @@ var subscriptionPlans = []struct {
 	Duration    string
 	Generations string
 }{
-	{"lite", "<tg-emoji emoji-id=\"5224607267797606837\">☄️</tg-emoji> Lite — Легкий старт", "🚀 Lite — Легкий старт", fmt.Sprintf("%d₽", amountLite), "1 неделя", fmt.Sprintf("%d фото и безлимитный ассистент", database.LitePhotoLimit)},
-	{"premium", "<tg-emoji emoji-id=\"5431766464040283359\">🔥</tg-emoji> Premium — Лучший вариант", "🔥 Premium — Лучший выбор", fmt.Sprintf("%d₽", amountPremium), "1 месяц", fmt.Sprintf("%d фото и безлимитный ассистент", database.PremiumPhotoLimit)},
+	{"lite", "<tg-emoji emoji-id=\"5465304961711616606\">☄️</tg-emoji> Lite — Легкий старт", "🚀 Lite — Легкий старт", fmt.Sprintf("%d₽", amountLite), "1 неделя", fmt.Sprintf("%d фото и безлимитный ассистент", database.LitePhotoLimit)},
+	{"premium", "<tg-emoji emoji-id=\"5393569030659408886\">🔥</tg-emoji> Premium — Лучший вариант", "🔥 Premium — Лучший выбор", fmt.Sprintf("%d₽", amountPremium), "1 месяц", fmt.Sprintf("%d фото и безлимитный ассистент", database.PremiumPhotoLimit)},
 }
 
 func subscriptionPlanMessage(planID string) string {
@@ -613,16 +638,24 @@ func (h *Handler) HandleUpdate(ctx context.Context, upd models.Update) {
 		return
 	}
 
-	sub, err := h.Db.GetSubscription(ctx, chatID)
-	if err != nil {
+	// Шаги создания модели проверяем до GetSubscription:
+	// иначе при отсутствии пользователя в БД (GetSubscription err) ввод имени/фото игнорируется.
+	st, _, _ = h.Rd.Get(ctx, key)
+	if st.Step == stateStepAwaitModelName || st.Step == stateStepAwaitModelPhoto ||
+		st.Step == stateStepAwaitMedia || st.Step == stateStepAwaitText {
+		_ = h.Db.EnsureUserExists(ctx, chatID)
+	}
+	if st.Step == stateStepAwaitModelName {
+		h.handlePhotoModelNameInput(ctx, key, chatID, upd.Message)
 		return
 	}
-
-	if sub != "" && sub != "End" {
-		ended, err := h.Db.IsSubscriptionEnd(ctx, chatID)
-		if err == nil && ended {
-			_ = h.Db.ClearSubscription(ctx, chatID)
+	if st.Step == stateStepAwaitModelPhoto {
+		if len(upd.Message.Photo) > 0 && upd.Message.MediaGroupID != "" {
+			h.handleModelPhotoMediaGroup(ctx, key, chatID, upd.Message.MediaGroupID, upd.Message.Photo[len(upd.Message.Photo)-1].FileID, upd.Message.MessageID)
+			return
 		}
+		h.handlePhotoModelPhotoInput(ctx, key, chatID, upd.Message)
+		return
 	}
 
 	if st.Step == stateStepAwaitMedia && h.saveMediaAndPromptIfPresent(ctx, key, chatID, upd.Message) {
@@ -631,6 +664,17 @@ func (h *Handler) HandleUpdate(ctx context.Context, upd models.Update) {
 
 	if st.Step == stateStepAwaitText && h.saveTextAndFileIfPresent(ctx, key, chatID, upd.Message) {
 		return
+	}
+
+	sub, err := h.Db.GetSubscription(ctx, chatID)
+	if err != nil {
+		return
+	}
+	if sub != "" && sub != "End" {
+		ended, err := h.Db.IsSubscriptionEnd(ctx, chatID)
+		if err == nil && ended {
+			_ = h.Db.ClearSubscription(ctx, chatID)
+		}
 	}
 
 	log.Printf("handle update_id=%d chat_id=%d text=%q step=%s", upd.UpdateID, chatID, upd.Message.Text, st.Step)
@@ -722,7 +766,8 @@ func (h *Handler) handleCallbackQuery(ctx context.Context, cq *models.CallbackQu
 		userID = cq.From.ID
 	}
 
-	switch cq.Data {
+	data := strings.TrimSpace(cq.Data)
+	switch data {
 	case callbackClaimGenerations:
 		h.handleClaimGenerations(ctx, cq.ID, chatID, userID)
 	case callbackVerifySubscription:
@@ -747,13 +792,82 @@ func (h *Handler) handleCallbackQuery(ctx context.Context, cq *models.CallbackQu
 		h.handlePayMethodSelect(ctx, cq.ID, chatID, cq.Message.MessageID, cq.Data)
 	case callbackSubPlanConfirm:
 		h.handlePayConfirm(ctx, cq.ID, chatID, cq.Message.MessageID)
+	case callbackMakeModel:
+		h.handleMakeModel(ctx, cq.ID, chatID, cq.Message.MessageID)
+	case callbackModelStatus:
+		h.handleModelStatus(ctx, cq.ID, chatID, cq.Message.MessageID)
+	case callbackResetModel:
+		h.handleResetModel(ctx, cq.ID, chatID, cq.Message.MessageID)
 	default:
-		if strings.HasPrefix(cq.Data, callbackPayCancelPrefix) {
-			paymentID := strings.TrimPrefix(cq.Data, callbackPayCancelPrefix)
+		if strings.HasPrefix(data, callbackPayCancelPrefix) {
+			paymentID := strings.TrimPrefix(data, callbackPayCancelPrefix)
 			h.handlePayCancel(ctx, cq.ID, chatID, cq.Message.MessageID, paymentID)
 		} else {
 			_ = h.answerCallbackQuery(ctx, cq.ID, "")
 		}
+	}
+}
+
+func (h *Handler) handleModelStatus(ctx context.Context, callbackID string, chatID int64, _ int) {
+	key := "bot:state:" + strconv.FormatInt(chatID, 10)
+	st, _, _ := h.Rd.Get(ctx, key)
+	m := loadPhotoModel(st)
+	if m == nil {
+		_ = h.answerCallbackQuery(ctx, callbackID, "Модель не выбрана. Нажмите «Установить новую модель».")
+		return
+	}
+	_ = h.answerCallbackQuery(ctx, callbackID, "Текущая модель: "+strings.TrimSpace(m.Name))
+}
+
+func (h *Handler) handleResetModel(ctx context.Context, callbackID string, chatID int64, messageID int) {
+	key := "bot:state:" + strconv.FormatInt(chatID, 10)
+	st, _, _ := h.Rd.Get(ctx, key)
+	if loadPhotoModel(st) == nil {
+		_ = h.answerCallbackQuery(ctx, callbackID, "Модель уже не выбрана.")
+		return
+	}
+	_ = h.answerCallbackQuery(ctx, callbackID, "Модель сброшена")
+
+	if st.Data == nil {
+		st.Data = make(map[string]string)
+	}
+	delete(st.Data, stateKeyPhotoModelsJSON)
+	delete(st.Data, stateKeySelectedPhotoModel)
+	delete(st.Data, stateKeyPendingModelName)
+	if err := h.Rd.Set(ctx, key, st, defaultStateTTL); err != nil {
+		log.Printf("handleResetModel Set: %v", err)
+	}
+
+	// caption := h.photoInstructionCaption(ctx, chatID)
+	markup := h.photoInstructionKeyboard(ctx, chatID)
+	if err := h.editMessageCaptionWithKeyboard(ctx, chatID, messageID, msgInstructionPhoto, markup); err != nil {
+		log.Printf("handleResetModel editMessage: %v", err)
+	}
+}
+
+func (h *Handler) handleMakeModel(ctx context.Context, callbackID string, chatID int64, messageID int) {
+	_ = h.answerCallbackQuery(ctx, callbackID, "")
+	key := "bot:state:" + strconv.FormatInt(chatID, 10)
+	st, _, _ := h.Rd.Get(ctx, key)
+	if st.Data == nil {
+		st.Data = make(map[string]string)
+	}
+	delete(st.Data, stateKeyPendingModelName)
+	delete(st.Data, stateKeyModelCreateEnterNameMsgID)
+	delete(st.Data, stateKeyModelCreateSendPhotoMsgID)
+	st.Step = stateStepAwaitModelName
+	if err := h.Rd.Set(ctx, key, st, defaultStateTTL); err != nil {
+		log.Printf("handleMakeModel Set: %v", err)
+	}
+
+	// Отдельный контекст: после выхода из HandleUpdate воркер отменяет ctx, горутина с ctx ломала SendMessage.
+	sendCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if msgID, err := h.SendMessage(sendCtx, chatID, msgPhotoModelEnterName); err != nil {
+		log.Printf("handleMakeModel SendMessage chat_id=%d: %v", chatID, err)
+	} else if msgID > 0 {
+		st.Data[stateKeyModelCreateEnterNameMsgID] = strconv.Itoa(msgID)
+		_ = h.Rd.Set(ctx, key, st, defaultStateTTL)
 	}
 }
 
@@ -826,11 +940,8 @@ func (h *Handler) handlePhoto(ctx context.Context, callbackID string, chatID int
 		return
 	}
 
-	backMarkup := models.InlineKeyboardMarkup{
-		InlineKeyboard: [][]models.InlineKeyboardButton{
-			{{Text: btnBack, CallbackData: callbackBackMainDelete}},
-		},
-	}
+	// caption := h.photoInstructionCaption(ctx, chatID)
+	backMarkup := h.photoInstructionKeyboard(ctx, chatID)
 	if err := h.editMessageCaptionWithKeyboard(ctx, chatID, messageID, msgInstructionPhoto, backMarkup); err != nil {
 		log.Printf("editMessage instruction photo: %v", err)
 	}
@@ -838,6 +949,7 @@ func (h *Handler) handlePhoto(ctx context.Context, callbackID string, chatID int
 	if st.Data == nil {
 		st.Data = make(map[string]string)
 	}
+	st.Data[stateKeyPhotoInstructionMsgID] = strconv.Itoa(messageID)
 	st.Step = stateStepAwaitMedia
 	_ = h.Rd.Set(ctx, "bot:state:"+strconv.FormatInt(chatID, 10), st, defaultStateTTL)
 }
@@ -1153,12 +1265,8 @@ func (h *Handler) sendSticker(ctx context.Context, chatID int64, stickerFileID s
 }
 
 // saveMediaAndPromptIfPresent сохраняет file_id фото и промпт (caption) в Redis.
-// Поддерживает media groups (альбомы): накапливает все фото группы и обрабатывает разом.
+// Поддерживает media groups (альбомы). При заданной модели — можно отправить только промпт (без референса).
 func (h *Handler) saveMediaAndPromptIfPresent(ctx context.Context, key string, chatID int64, msg *models.MessageContent) bool {
-	if len(msg.Photo) == 0 {
-		return false
-	}
-
 	remaining, err := h.Db.GetRemainingPhoto(ctx, chatID)
 	if err != nil {
 		log.Printf("GetRemainingPhoto chat_id=%d: %v", chatID, err)
@@ -1176,16 +1284,37 @@ func (h *Handler) saveMediaAndPromptIfPresent(ctx context.Context, key string, c
 		return false
 	}
 
+	// При заданной модели — только промпт без референса
+	st, _, _ := h.Rd.Get(ctx, key)
+	if loadPhotoModel(st) != nil {
+		prompt := strings.TrimSpace(msg.Text)
+		if len(msg.Photo) == 0 && prompt != "" {
+			h.dispatchPhotoTaskModelOnly(ctx, key, chatID, prompt)
+			return true
+		}
+	}
+
+	if len(msg.Photo) == 0 {
+		return false
+	}
+
 	fileID := msg.Photo[len(msg.Photo)-1].FileID
+
+	// С моделью — только одно фото референса, альбомы не допускаются
+	if loadPhotoModel(st) != nil && msg.MediaGroupID != "" {
+		_, _ = h.SendMessage(ctx, chatID, "С выбранной моделью можно отправить только одно фото референса. Подпись к нему можно не добавлять.")
+		return true
+	}
 
 	if msg.MediaGroupID != "" {
 		return h.handleMediaGroup(ctx, key, chatID, msg.MediaGroupID, fileID, msg.Caption)
 	}
 
-	if msg.Caption == "" {
+	caption := strings.TrimSpace(msg.Caption)
+	if caption == "" && loadPhotoModel(st) == nil {
 		return false
 	}
-	h.dispatchPhotoTask(ctx, key, chatID, []string{fileID}, msg.Caption)
+	h.dispatchPhotoTask(ctx, key, chatID, []string{fileID}, caption)
 	return true
 }
 
@@ -1232,6 +1361,42 @@ func (h *Handler) handleMediaGroup(ctx context.Context, key string, chatID int64
 	return true
 }
 
+// handleModelPhotoMediaGroup буферизирует фото альбома при создании модели (без подписи к посту).
+func (h *Handler) handleModelPhotoMediaGroup(ctx context.Context, key string, chatID int64, groupID, fileID string, messageID int) {
+	h.modelPhotoGroupsMu.Lock()
+	entry, exists := h.modelPhotoGroups[groupID]
+	if !exists {
+		entry = &modelPhotoGroupEntry{
+			Key:    key,
+			ChatID: chatID,
+			Timer:  &sync.Once{},
+		}
+		h.modelPhotoGroups[groupID] = entry
+	}
+	entry.FileIDs = append(entry.FileIDs, fileID)
+	entry.MessageIDs = append(entry.MessageIDs, messageID)
+	h.modelPhotoGroupsMu.Unlock()
+
+	entry.Timer.Do(func() {
+		go func() {
+			time.Sleep(2 * time.Second)
+
+			h.modelPhotoGroupsMu.Lock()
+			final := h.modelPhotoGroups[groupID]
+			delete(h.modelPhotoGroups, groupID)
+			h.modelPhotoGroupsMu.Unlock()
+
+			if final == nil || len(final.FileIDs) == 0 {
+				return
+			}
+
+			bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			h.finalizePhotoModelCreation(bgCtx, final.Key, chatID, final.FileIDs, final.MessageIDs...)
+		}()
+	})
+}
+
 // dispatchPhotoTask сохраняет file_id(s) и промпт в Redis, отправляет стикер и кладёт задачу в KieTasks.
 func (h *Handler) dispatchPhotoTask(ctx context.Context, key string, chatID int64, fileIDs []string, caption string) {
 	st, _, _ := h.Rd.Get(ctx, key)
@@ -1245,6 +1410,7 @@ func (h *Handler) dispatchPhotoTask(ctx context.Context, key string, chatID int6
 	} else {
 		delete(st.Data, stateKeyMediaFileIDs)
 	}
+	delete(st.Data, stateKeyModelPromptOnly)
 	st.Data[stateKeyPrompt] = caption
 	st.Step = "GetPhotoPrompt"
 
@@ -1253,6 +1419,39 @@ func (h *Handler) dispatchPhotoTask(ctx context.Context, key string, chatID int6
 		return
 	}
 	log.Printf("saved to Redis chat_id=%d file_ids=%v prompt_len=%d", chatID, fileIDs, len(caption))
+	if msgID, err := h.sendSticker(ctx, chatID, stickerProcessingFileID); err != nil {
+		log.Printf("sendSticker: %v", err)
+	} else if msgID > 0 {
+		_ = h.Rd.SetStickerMessageID(ctx, chatID, msgID, defaultStateTTL)
+	}
+
+	if h.KieTasks != nil {
+		select {
+		case h.KieTasks <- chatID:
+			log.Printf("pushed to kieTasks chat_id=%d", chatID)
+		default:
+			log.Printf("kie queue full, chat_id=%d dropped", chatID)
+		}
+	}
+}
+
+// dispatchPhotoTaskModelOnly — промпт без референса (только модель = человек).
+func (h *Handler) dispatchPhotoTaskModelOnly(ctx context.Context, key string, chatID int64, prompt string) {
+	st, _, _ := h.Rd.Get(ctx, key)
+	if st.Data == nil {
+		st.Data = make(map[string]string)
+	}
+	delete(st.Data, stateKeyMediaFileID)
+	delete(st.Data, stateKeyMediaFileIDs)
+	st.Data[stateKeyModelPromptOnly] = "1"
+	st.Data[stateKeyPrompt] = prompt
+	st.Step = "GetPhotoPrompt"
+
+	if err := h.Rd.Set(ctx, key, st, shortStateTTL); err != nil {
+		log.Printf("Redis Set: %v", err)
+		return
+	}
+	log.Printf("saved to Redis chat_id=%d model_prompt_only prompt_len=%d", chatID, len(prompt))
 	if msgID, err := h.sendSticker(ctx, chatID, stickerProcessingFileID); err != nil {
 		log.Printf("sendSticker: %v", err)
 	} else if msgID > 0 {
@@ -1378,10 +1577,24 @@ func (h *Handler) HandlePayment(ctx context.Context, payment models.YouMoneyResu
 		if err := h.Db.EnsureUserExists(ctx, payment.ChatID); err != nil {
 			log.Printf("EnsureUserExists chat_id=%d: %v", payment.ChatID, err)
 		}
+
 		subName := payment.Description
 		log.Printf("subName: %s", subName)
 		if err := h.Db.SetSubscription(ctx, payment.ChatID, subName); err != nil {
 			log.Printf("SetSubscription chat_id=%d: %v", payment.ChatID, err)
+		}
+
+		var am int
+		if subName == "lite" {
+			am = amountLite
+		} else if subName == "premium" {
+			am = amountPremium
+		}
+
+		if h.LogsChannelID != "" {
+			if logsid, err := strconv.ParseInt(h.LogsChannelID, 10, 64); err == nil {
+				_, _ = h.SendMessage(ctx, logsid, fmt.Sprintf("Получен платеж! tg://user?id=%d оформил подписку %s за %d", payment.ChatID, subName, am))
+			}
 		}
 
 		msgID, err := h.SendMessage(ctx, payment.ChatID, msgPaymentSuccess)
@@ -1402,6 +1615,12 @@ func (h *Handler) HandlePayment(ctx context.Context, payment models.YouMoneyResu
 			h.sendMainMenu(ctx, payment.ChatID)
 		}
 	} else if payment.Status != "canceled" {
+		if h.LogsChannelID != "" {
+			if logsid, err := strconv.ParseInt(h.LogsChannelID, 10, 64); err == nil {
+				_, _ = h.SendMessage(ctx, logsid, fmt.Sprintf("Платеж отменен! %d не оформил подписку %s", payment.ChatID, payment.Description))
+			}
+		}
+
 		text := fmt.Sprintf("❌ Произошла ошибка! %s", payment.Status)
 		_, _ = h.SendMessage(ctx, payment.ChatID, text)
 	}

@@ -22,6 +22,7 @@ type Config struct {
 	YouKassaID        string
 	YouKassaSecretKey string
 	YouKassaReturnURL string // URL возврата после оплаты (ReturnURL в платёж ЮKassa)
+	LogsChannelID string
 }
 
 func Load() (Config, error) {
@@ -44,6 +45,7 @@ func Load() (Config, error) {
 		YouKassaID:        os.Getenv("YOU_KASSA_ID"),
 		YouKassaSecretKey: os.Getenv("YOU_KASSA_SECRET_KEY"),
 		YouKassaReturnURL: os.Getenv("YOU_KASSA_RETURN_URL"),
+		LogsChannelID: os.Getenv("LOGS_CHANNEL_ID"),
 	}
 
 	return cfg, nil

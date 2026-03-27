@@ -49,8 +49,29 @@ func (h *Handler) ProcessKieTasks(ctx context.Context) {
 
 					if st.Step == "GetPhotoPrompt" {
 						var mediaURLs []string
+						m := loadPhotoModel(st)
+						modelPromptOnly := st.Data[stateKeyModelPromptOnly] == "1"
 
-						if raw := st.Data[stateKeyMediaFileIDs]; raw != "" {
+						// Только промпт при модели — используем только фото человека (модель)
+						if modelPromptOnly && m != nil {
+							for _, fid := range modelRefFileIDs(m) {
+								if fid == "" {
+									continue
+								}
+								modelURL, errModel := h.GetUrlFromFileId(ctx, fid)
+								if errModel != nil {
+									log.Printf("ProcessKieTasks model ref chat_id=%d fid=%s: %v", id, fid, errModel)
+									continue
+								}
+								if modelURL != "" {
+									mediaURLs = append(mediaURLs, modelURL)
+								}
+							}
+							if len(mediaURLs) == 0 {
+								log.Printf("ProcessKieTasks: model prompt only but no model refs chat_id=%d", id)
+								continue
+							}
+						} else if raw := st.Data[stateKeyMediaFileIDs]; raw != "" {
 							var fileIDs []string
 							if err := json.Unmarshal([]byte(raw), &fileIDs); err != nil {
 								log.Printf("ProcessKieTasks: bad media_file_ids json chat_id=%d: %v", id, err)
@@ -66,16 +87,18 @@ func (h *Handler) ProcessKieTasks(ctx context.Context) {
 							}
 						} else {
 							fileID := st.Data[stateKeyMediaFileID]
-							if fileID == "" {
+							if fileID == "" && !modelPromptOnly {
 								log.Printf("ProcessKieTasks: empty media_file_id for chat_id=%d", id)
 								continue
 							}
-							u, err := h.GetUrlFromFileId(ctx, fileID)
-							if err != nil {
-								log.Printf("GetUrlFromFileId chat_id=%d: %v", id, err)
-								continue
+							if fileID != "" {
+								u, err := h.GetUrlFromFileId(ctx, fileID)
+								if err != nil {
+									log.Printf("GetUrlFromFileId chat_id=%d: %v", id, err)
+									continue
+								}
+								mediaURLs = []string{u}
 							}
-							mediaURLs = []string{u}
 						}
 
 						if len(mediaURLs) == 0 {
@@ -83,7 +106,105 @@ func (h *Handler) ProcessKieTasks(ctx context.Context) {
 							continue
 						}
 
+						// Модель = человек. Референс = сцена. Порядок: [референс, человек...]. При modelPromptOnly — только человек.
+						if !modelPromptOnly && m != nil {
+							var suffix []string
+							for _, fid := range modelRefFileIDs(m) {
+								if fid == "" {
+									continue
+								}
+								modelURL, errModel := h.GetUrlFromFileId(ctx, fid)
+								if errModel != nil {
+									log.Printf("ProcessKieTasks model ref chat_id=%d fid=%s: %v", id, fid, errModel)
+									continue
+								}
+								if modelURL != "" {
+									suffix = append(suffix, modelURL)
+								}
+							}
+							if len(suffix) > 0 {
+								mediaURLs = append(mediaURLs, suffix...)
+							}
+						}
+
 						prompt := st.Data[stateKeyPrompt]
+						// Для nano-banana: объясняем порядок изображений
+						if m != nil {
+							if modelPromptOnly {
+								prompt = fmt.Sprintf(`На входе изображение человека (референс внешности).
+
+Задача: %s.
+
+Инструкции:
+- Используй изображение как ЕДИНСТВЕННЫЙ источник внешности человека
+- Максимально точно воспроизведи лицо: форма лица, глаза, нос, губы, расстояния между чертами
+- Сохрани полную узнаваемость человека
+- НЕ изменяй идентичность и не "улучшай" лицо
+
+Разрешено:
+- Менять одежду, позу, фон, освещение
+- Добавлять детали окружения
+
+Вариативность (обязательно):
+- Итог не должен быть точной копией референса
+- Добавь небольшие естественные изменения: другой ракурс, микро-изменение позы, вариации освещения или окружения
+- Сохрани реалистичность — как будто это новая фотография того же человека
+
+Важно:
+- Лицо должно быть тем же самым человеком, а не просто похожим
+- Вариативность НЕ должна влиять на узнаваемость лица
+
+Требования к результату:
+- Фотореализм, высокая детализация
+- Без искажений лица и артефактов
+- Итог — тот же человек, но в немного изменённой, естественной ситуации`, prompt)
+							} else if len(mediaURLs) > 1 {
+								nPerson := len(mediaURLs) - 1
+prompt = fmt.Sprintf(`Первое изображение — референс сцены (поза, композиция, освещение, стиль).
+Следующие %d изображений — один и тот же человек (разные ракурсы лица).
+
+Задача: %s.
+
+Инструкции:
+- Используй ВСЕ изображения человека для точного восстановления его внешности
+- НЕ усредняй лицо и НЕ смешивай черты
+- Определи ключевые, устойчивые черты лица и строго их сохрани
+- Лицо должно быть узнаваемо как тот же человек
+
+Критически важно:
+- Лицо — абсолютный приоритет
+- Запрещено менять идентичность или добавлять новые черты
+- Запрещено "улучшение" лица или стилизация
+
+Композиция:
+- Используй первое изображение как ОСНОВУ сцены
+- Воспроизведи общий стиль, позу и освещение
+- НО не копируй сцену 1-в-1
+
+Вариативность (обязательно):
+- Внеси небольшие естественные изменения:
+  - слегка другой ракурс или положение камеры
+  - небольшое изменение позы
+  - вариации освещения или фона
+- Итог должен выглядеть как новая фотография, вдохновлённая референсом, а не его копия
+
+Одежда:
+- Следуй описанию задачи
+- Должна выглядеть реалистично и естественно
+
+Приоритет:
+1. Идентичность лица (максимально точно)
+2. Геометрия и пропорции лица
+3. Общая композиция сцены
+4. Вариативность и естественность
+
+Требования:
+- Фотореализм, высокая детализация
+- Без искажений лица и артефактов
+- Без эффекта "другого человека"
+- Итог — тот же человек, но в слегка изменённой, новой сцене`, nPerson, prompt)
+							}
+						}
 
 						if h.KieAcquire != nil {
 							h.KieAcquire()
@@ -96,6 +217,7 @@ func (h *Handler) ProcessKieTasks(ctx context.Context) {
 						} else {
 							log.Printf("ProcessKieTasks: sent to kie chat_id=%d (%d images)", id, len(mediaURLs))
 							delete(st.Data, stateKeyKieRetry)
+							delete(st.Data, stateKeyModelPromptOnly)
 							_ = h.Rd.Set(ctx, key, st, defaultStateTTL)
 						}
 					}

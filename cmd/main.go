@@ -61,7 +61,7 @@ func main() {
 	defer kieCancel()
 	kieLimiter.StartRefill(kieCtx)
 
-	handler := handlers.NewHandler(store, db, cfg.BotToken, cfg.KieAPIKey, cfg.KieCallbackURL, cfg.ChannelID, cfg.ChannelLink, kieTasks, kieLimiter.Acquire, cfg.YouKassaID, cfg.YouKassaSecretKey, cfg.YouKassaReturnURL)
+	handler := handlers.NewHandler(store, db, cfg.BotToken, cfg.KieAPIKey, cfg.KieCallbackURL, cfg.ChannelID, cfg.ChannelLink, kieTasks, kieLimiter.Acquire, cfg.YouKassaID, cfg.YouKassaSecretKey, cfg.YouKassaReturnURL, cfg.LogsChannelID)
 
 	var updateBuf = 10000
 	var numUpdateWorkers = 32
