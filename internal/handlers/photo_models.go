@@ -298,9 +298,19 @@ func (h *Handler) refreshPhotoInstructionMessage(ctx context.Context, chatID int
 	if err != nil || msgID <= 0 {
 		return
 	}
-	// caption := h.photoInstructionCaption(ctx, chatID)
+	if st.Data[stateKeyPhotoMode] == photoModeValueNormal {
+		markup := photoNormalOnlyBackMarkup()
+		if err := h.editMessageCaptionWithKeyboard(ctx, chatID, msgID, msgInstructionPhotoNormal, markup); err != nil {
+			log.Printf("refreshPhotoInstructionMessage chat_id=%d: %v", chatID, err)
+		}
+		return
+	}
+	caption := msgInstructionPhoto
+	if loadPhotoModel(st) != nil {
+		caption = msgInstructionPhotoModel
+	}
 	markup := h.photoInstructionKeyboard(ctx, chatID)
-	if err := h.editMessageCaptionWithKeyboard(ctx, chatID, msgID, msgInstructionPhoto, markup); err != nil {
+	if err := h.editMessageCaptionWithKeyboard(ctx, chatID, msgID, caption, markup); err != nil {
 		log.Printf("refreshPhotoInstructionMessage chat_id=%d: %v", chatID, err)
 	}
 }

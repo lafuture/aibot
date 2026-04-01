@@ -50,6 +50,9 @@ func (h *Handler) ProcessKieTasks(ctx context.Context) {
 					if st.Step == "GetPhotoPrompt" {
 						var mediaURLs []string
 						m := loadPhotoModel(st)
+						if st.Data[stateKeyPhotoMode] == photoModeValueNormal {
+							m = nil
+						}
 						modelPromptOnly := st.Data[stateKeyModelPromptOnly] == "1"
 
 						// Только промпт при модели — используем только фото человека (модель)
@@ -103,6 +106,11 @@ func (h *Handler) ProcessKieTasks(ctx context.Context) {
 
 						if len(mediaURLs) == 0 {
 							log.Printf("ProcessKieTasks: no media URLs for chat_id=%d", id)
+							continue
+						}
+
+						if st.Data[stateKeyPhotoMode] == photoModeValueReference && loadPhotoModel(st) == nil {
+							log.Printf("ProcessKieTasks: reference mode without model chat_id=%d", id)
 							continue
 						}
 
@@ -360,6 +368,7 @@ func (h *Handler) SendToGeminiFlash(ctx context.Context, key, prompt, fileURL st
 	var MessageID int
 	var lastEditAt time.Time
 	var ttft, tFirstMsg time.Duration
+	assistantBackMarkup := photoNormalOnlyBackMarkup()
 
 	scanner := bufio.NewScanner(resp.Body)
 
@@ -386,7 +395,7 @@ func (h *Handler) SendToGeminiFlash(ctx context.Context, key, prompt, fileURL st
 				if ttft == 0 {
 					ttft = time.Since(t0)
 				}
-				m, err := h.SendMessage(ctx, chatID, chunk.Choices[0].Delta.Content)
+				m, err := h.sendMessageWithInlineKeyboard(ctx, chatID, chunk.Choices[0].Delta.Content, assistantBackMarkup)
 				if err != nil {
 					log.Printf("SendToGeminiFlash sendMessage: %v", err)
 					st.Step = stateStepAwaitText
@@ -405,7 +414,7 @@ func (h *Handler) SendToGeminiFlash(ctx context.Context, key, prompt, fileURL st
 			}
 
 			if time.Since(lastEditAt) > 500*time.Millisecond && oldReplytext != replyText {
-				err := h.editMessage(ctx, chatID, MessageID, replyText)
+				err := h.editMessageWithKeyboard(ctx, chatID, MessageID, replyText, assistantBackMarkup)
 				if err != nil {
 					log.Printf("SendToGeminiFlash sendMessage: %v", err)
 					st.Step = stateStepAwaitText
@@ -416,7 +425,7 @@ func (h *Handler) SendToGeminiFlash(ctx context.Context, key, prompt, fileURL st
 		}
 	}
 
-	if err := h.editMessage(ctx, chatID, MessageID, replyText); err != nil {
+	if err := h.editMessageWithKeyboard(ctx, chatID, MessageID, replyText, assistantBackMarkup); err != nil {
 		log.Printf("SendToGeminiFlash sendMessage: %v", err)
 		st.Step = stateStepAwaitText
 		_ = h.Rd.Set(ctx, key, st, defaultStateTTL)

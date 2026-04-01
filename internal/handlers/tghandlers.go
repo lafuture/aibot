@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"aibot/internal/database"
 	"aibot/internal/state"
 	"bytes"
 	"context"
@@ -31,6 +30,8 @@ const (
 	callbackVerifySubscription = "verify_sub"
 	callbackChat               = "chat"
 	callbackPhoto              = "photo"
+	callbackPhotoModeReference = "pht_mode_ref"
+	callbackPhotoModeNormal    = "pht_mode_norm"
 	callbackProfile            = "profile"
 	callbackSupport            = "support"
 	callbackBackMain           = "back_main"
@@ -73,8 +74,13 @@ const (
 	stateKeyModelCreateEnterNameMsgID = "model_create_enter_name_msg_id" // сообщение «Введите имя модели»
 	stateKeyModelCreateSendPhotoMsgID = "model_create_send_photo_msg_id" // сообщение «Пришлите фото модели»
 	stateKeyModelPromptOnly           = "model_prompt_only"              // при модели: только промпт, без референса
+	stateKeyPhotoMode                 = "photo_mode"                     // reference | normal
+
+	photoModeValueReference = "reference"
+	photoModeValueNormal    = "normal"
 
 	// Redis state steps
+	stateStepPickPhotoMode   = "pick_photo_mode"
 	stateStepAwaitMedia      = "await_photo_prompt"
 	stateStepGetPhotoPrompt  = "get_photo_prompt"
 	stateStepAwaitText       = "await_text"
@@ -88,7 +94,9 @@ const (
 	msgSubscribeToUse       = "‼️ Для использования бота необходимо подписаться на канал"
 	msgNotSubscribed        = "❌ Вы не подписались"
 	msgSupport              = "<tg-emoji emoji-id=\"5226876951855113572\">😇</tg-emoji> Поддержка\n\n <tg-emoji emoji-id=\"5406745015365943482\">⏬</tg-emoji> Перейдите по кнопке ниже чтобы связаться с нами"
-	msgInstructionPhoto     = "<tg-emoji emoji-id=\"5370607250731718891\">📸</tg-emoji> Пришлите запрос с медиа или установите модель и пришлите референс с описанием или без.\n\n<blockquote>Примеры запросов: \n<i>- Поменяй цвет волос на рыжий</i> \n<i>- Сделай меня привлекательней </i>\n<i>- Добавь к моему селфи Эпштейна </i>\n\n<i>Чем подробнее запрос тем лучше результат</i></blockquote>\n"
+	msgInstructionPhoto     = "<tg-emoji emoji-id=\"5370607250731718891\">📸</tg-emoji> Пришлите референс с описанием или без\n\n<blockquote>Для работы с референсом: \n<i>1. Нажмите установить новую модель</i> \n<i>2. Назовите модель и отправьте свои фото</i>\n<i>3. Пришлите референс с описанием или без </i>\n\n<i>Чем подробнее запрос тем лучше результат</i></blockquote>\n"
+	msgInstructionPhotoNormal = "<tg-emoji emoji-id=\"5370607250731718891\">📸</tg-emoji> Пришлите до десяти фотографий с описанием желаемого результата\n\n<blockquote>Примеры запросов: \n<i>- Поменяй цвет волос на рыжий</i> \n<i>- Сделай меня привлекательней </i>\n<i>- Добавь к моему селфи Брэд Питта </i>\n\n<i>Чем подробнее запрос тем лучше результат</i></blockquote>\n"
+	msgPickPhotoMode        = "<tg-emoji emoji-id=\"5370607250731718891\">📸</tg-emoji> Выберите режим"
 	msgInstructionChat      = "<tg-emoji emoji-id=\"5386691718571646404\">💬</tg-emoji> Для получения ответа на ваш запрос напишите его в чат\n\n<blockquote>Примеры запросов: \n<i>- Придумай промпт по этому фото</i> \n<i>- Придумай идеи для фотосессии </i>\n<i>- Придумай описание для этого фото </i>\n\n<i>Чем подробнее запрос тем лучше результат</i></blockquote>"
 	msgPaymentSuccess       = "<tg-emoji emoji-id=\"5298780919207844086\">✅</tg-emoji> Подписка успешно приобретена!"
 	msgPayLink              = "<tg-emoji emoji-id=\"5386757680679377085\">💵</tg-emoji> Оплатите по ссылке ниже"
@@ -108,6 +116,9 @@ const (
 	msgPhotoModelSaved       = "<tg-emoji emoji-id=\"5298780919207844086\">✅</tg-emoji> Модель сохранена. Пришлите референс с описанием или без."
 	msgPhotoModelPickName    = "Сначала отправьте название текстом."
 	msgInstructionPhotoModel = "<tg-emoji emoji-id=\"5370607250731718891\">📸</tg-emoji> Модель (вы) задана. Варианты:\n\n• Фото референса (сцена) с подписью или без — например «сделай меня на пляже»\n• Только текст — опишите желаемое изображение без референса"
+	msgPhotoReferenceNeedModel = "В режиме «Референс» без установленной модели генерация недоступна. Нажмите «Установить новую модель» в меню выше или выберите режим «Обычный»."
+	msgPhotoNormalNeedCaption  = "В режиме «Обычный» к фото или альбому нужна подпись с описанием желаемого результата."
+	msgPhotoNormalTextOnly     = "В режиме «Обычный» пришлите фото или альбом с подписью к посту. Один только текст здесь не подходит."
 
 	// Тексты кнопок
 	btnMakePhoto       = "📸 Сделать фото"
@@ -124,6 +135,8 @@ const (
 	btnGoToPay         = "🔗 Перейти к оплате"
 	btnCancelPay       = "❌ Отменить платёж"
 	btnSupport         = "💬 Написать"
+	btnPhotoModeReference = "🔥 С референсом"
+	btnPhotoModeNormal    = "💎 Обычный"
 	btnSetNewModel     = "➕ Установить новую модель"
 	btnResetModel      = "✖️ Сбросить модель"
 	btnModelNotSet     = "👤 Модель: не выбрана"
@@ -149,14 +162,14 @@ var subscriptionPlans = []struct {
 	Duration    string
 	Generations string
 }{
-	{"lite", "<tg-emoji emoji-id=\"5465304961711616606\">☄️</tg-emoji> Lite — Легкий старт", "🚀 Lite — Легкий старт", fmt.Sprintf("%d₽", amountLite), "1 неделя", fmt.Sprintf("%d фото и безлимитный ассистент", database.LitePhotoLimit)},
-	{"premium", "<tg-emoji emoji-id=\"5393569030659408886\">🔥</tg-emoji> Premium — Лучший вариант", "🔥 Premium — Лучший выбор", fmt.Sprintf("%d₽", amountPremium), "1 месяц", fmt.Sprintf("%d фото и безлимитный ассистент", database.PremiumPhotoLimit)},
+	{"lite", "<tg-emoji emoji-id=\"5465304961711616606\">☄️</tg-emoji> Lite — Легкий старт", "🚀 Lite — Легкий старт", fmt.Sprintf("%d₽", amountLite), "1 неделя", fmt.Sprintf("%d фото и безлимитный ассистент")},
+	{"premium", "<tg-emoji emoji-id=\"5393569030659408886\">🔥</tg-emoji> Premium — Лучший вариант", "🔥 Premium — Лучший выбор", fmt.Sprintf("%d₽", amountPremium), "1 месяц", fmt.Sprintf("%d фото и безлимитный ассистент")},
 }
 
 func subscriptionPlanMessage(planID string) string {
 	for _, p := range subscriptionPlans {
 		if p.ID == planID {
-			return fmt.Sprintf("%s\n\n<tg-emoji emoji-id=\"5409048419211682843\">💲</tg-emoji> Стоимость: %s\n<tg-emoji emoji-id=\"5386415655253730366\">⌛️</tg-emoji> Длительность: %s\n<tg-emoji emoji-id=\"5440841102871517055\">💥</tg-emoji> Количество генераций в подписке: %s", p.Title, p.Cost, p.Duration, p.Generations)
+			return fmt.Sprintf("%s\n\n<tg-emoji emoji-id=\"5409048419211682843\">💲</tg-emoji> Стоимость: %s\n<tg-emoji emoji-id=\"5386415655253730366\">⌛️</tg-emoji> Длительность: %s", p.Title, p.Cost, p.Duration)
 		}
 	}
 	return subscriptionPlans[0].Title // fallback Mini
@@ -500,6 +513,38 @@ func (h *Handler) editMessage(ctx context.Context, chatID int64, messageID int, 
 	return nil
 }
 
+// editMessageWithKeyboard редактирует текст сообщения и inline-клавиатуру (для ответов ассистента с кнопкой «Назад»).
+func (h *Handler) editMessageWithKeyboard(ctx context.Context, chatID int64, messageID int, text string, markup models.InlineKeyboardMarkup) error {
+	apiURL := "https://api.telegram.org/bot" + h.Token + "/editMessageText"
+	body := map[string]any{
+		"chat_id":    chatID,
+		"message_id": messageID,
+		"text":       text,
+	}
+	if len(markup.InlineKeyboard) > 0 {
+		body["reply_markup"] = markup
+	}
+	raw, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewReader(raw))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("telegram editMessageWithKeyboard: status %d", resp.StatusCode)
+	}
+	return nil
+}
+
 // answerCallbackQuery убирает "часики" у кнопки и опционально показывает уведомление (text — всплывающее сообщение).
 func (h *Handler) answerCallbackQuery(ctx context.Context, callbackQueryID string, text string) error {
 	apiURL := "https://api.telegram.org/bot" + h.Token + "/answerCallbackQuery"
@@ -581,6 +626,38 @@ func (h *Handler) mainMenuMarkup() models.InlineKeyboardMarkup {
 	}
 }
 
+func photoModeSelectMarkup() models.InlineKeyboardMarkup {
+	return models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{{Text: btnPhotoModeReference, CallbackData: callbackPhotoModeReference}},
+			{{Text: btnPhotoModeNormal, CallbackData: callbackPhotoModeNormal}},
+			{{Text: btnBack, CallbackData: callbackBackMainDelete}},
+		},
+	}
+}
+
+func photoNormalOnlyBackMarkup() models.InlineKeyboardMarkup {
+	return models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{{Text: btnBack, CallbackData: callbackBackMainDelete}},
+		},
+	}
+}
+
+func isPhotoNormalMode(st state.State) bool {
+	if st.Data == nil {
+		return false
+	}
+	return st.Data[stateKeyPhotoMode] == photoModeValueNormal
+}
+
+func isPhotoReferenceMode(st state.State) bool {
+	if st.Data == nil {
+		return false
+	}
+	return st.Data[stateKeyPhotoMode] == photoModeValueReference
+}
+
 // mainMenuGreetingText возвращает отформатированный текст главного меню с оставшимися лимитами.
 func (h *Handler) mainMenuGreetingText(ctx context.Context, chatID int64) string {
 	remainingPhoto, _ := h.Db.GetRemainingPhoto(ctx, chatID)
@@ -641,6 +718,10 @@ func (h *Handler) HandleUpdate(ctx context.Context, upd models.Update) {
 	// Шаги создания модели проверяем до GetSubscription:
 	// иначе при отсутствии пользователя в БД (GetSubscription err) ввод имени/фото игнорируется.
 	st, _, _ = h.Rd.Get(ctx, key)
+	if st.Step == stateStepPickPhotoMode {
+		_ = h.Db.EnsureUserExists(ctx, chatID)
+		return
+	}
 	if st.Step == stateStepAwaitModelName || st.Step == stateStepAwaitModelPhoto ||
 		st.Step == stateStepAwaitMedia || st.Step == stateStepAwaitText {
 		_ = h.Db.EnsureUserExists(ctx, chatID)
@@ -774,6 +855,10 @@ func (h *Handler) handleCallbackQuery(ctx context.Context, cq *models.CallbackQu
 		h.handleVerifySubscription(ctx, cq.ID, chatID, userID)
 	case callbackPhoto:
 		h.handlePhoto(ctx, cq.ID, chatID, cq.Message.MessageID)
+	case callbackPhotoModeReference:
+		h.handlePhotoModeReference(ctx, cq.ID, chatID, cq.Message.MessageID)
+	case callbackPhotoModeNormal:
+		h.handlePhotoModeNormal(ctx, cq.ID, chatID, cq.Message.MessageID)
 	case callbackChat:
 		h.handleChat(ctx, cq.ID, chatID, cq.Message.MessageID)
 	case callbackBackMain:
@@ -940,18 +1025,70 @@ func (h *Handler) handlePhoto(ctx context.Context, callbackID string, chatID int
 		return
 	}
 
-	// caption := h.photoInstructionCaption(ctx, chatID)
-	backMarkup := h.photoInstructionKeyboard(ctx, chatID)
-	if err := h.editMessageCaptionWithKeyboard(ctx, chatID, messageID, msgInstructionPhoto, backMarkup); err != nil {
-		log.Printf("editMessage instruction photo: %v", err)
-	}
-	st, _, _ := h.Rd.Get(ctx, "bot:state:"+strconv.FormatInt(chatID, 10))
+	key := "bot:state:" + strconv.FormatInt(chatID, 10)
+	st, _, _ := h.Rd.Get(ctx, key)
 	if st.Data == nil {
 		st.Data = make(map[string]string)
 	}
+	delete(st.Data, stateKeyPhotoMode)
+	st.Data[stateKeyPhotoInstructionMsgID] = strconv.Itoa(messageID)
+	st.Step = stateStepPickPhotoMode
+	if err := h.Rd.Set(ctx, key, st, defaultStateTTL); err != nil {
+		log.Printf("handlePhoto Set: %v", err)
+	}
+
+	if err := h.editMessageCaptionWithKeyboard(ctx, chatID, messageID, msgPickPhotoMode, photoModeSelectMarkup()); err != nil {
+		log.Printf("editMessage pick photo mode: %v", err)
+	}
+}
+
+func (h *Handler) handlePhotoModeReference(ctx context.Context, callbackID string, chatID int64, messageID int) {
+	key := "bot:state:" + strconv.FormatInt(chatID, 10)
+	st, _, _ := h.Rd.Get(ctx, key)
+	if st.Step != stateStepPickPhotoMode {
+		_ = h.answerCallbackQuery(ctx, callbackID, "Сначала нажмите «Сделать фото».")
+		return
+	}
+	_ = h.answerCallbackQuery(ctx, callbackID, "")
+	if st.Data == nil {
+		st.Data = make(map[string]string)
+	}
+	st.Data[stateKeyPhotoMode] = photoModeValueReference
 	st.Data[stateKeyPhotoInstructionMsgID] = strconv.Itoa(messageID)
 	st.Step = stateStepAwaitMedia
-	_ = h.Rd.Set(ctx, "bot:state:"+strconv.FormatInt(chatID, 10), st, defaultStateTTL)
+	if err := h.Rd.Set(ctx, key, st, defaultStateTTL); err != nil {
+		log.Printf("handlePhotoModeReference Set: %v", err)
+	}
+	caption := msgInstructionPhoto
+	if loadPhotoModel(st) != nil {
+		caption = msgInstructionPhotoModel
+	}
+	markup := h.photoInstructionKeyboard(ctx, chatID)
+	if err := h.editMessageCaptionWithKeyboard(ctx, chatID, messageID, caption, markup); err != nil {
+		log.Printf("editMessage reference mode: %v", err)
+	}
+}
+
+func (h *Handler) handlePhotoModeNormal(ctx context.Context, callbackID string, chatID int64, messageID int) {
+	key := "bot:state:" + strconv.FormatInt(chatID, 10)
+	st, _, _ := h.Rd.Get(ctx, key)
+	if st.Step != stateStepPickPhotoMode {
+		_ = h.answerCallbackQuery(ctx, callbackID, "Сначала нажмите «Сделать фото».")
+		return
+	}
+	_ = h.answerCallbackQuery(ctx, callbackID, "")
+	if st.Data == nil {
+		st.Data = make(map[string]string)
+	}
+	st.Data[stateKeyPhotoMode] = photoModeValueNormal
+	st.Data[stateKeyPhotoInstructionMsgID] = strconv.Itoa(messageID)
+	st.Step = stateStepAwaitMedia
+	if err := h.Rd.Set(ctx, key, st, defaultStateTTL); err != nil {
+		log.Printf("handlePhotoModeNormal Set: %v", err)
+	}
+	if err := h.editMessageCaptionWithKeyboard(ctx, chatID, messageID, msgInstructionPhotoNormal, photoNormalOnlyBackMarkup()); err != nil {
+		log.Printf("editMessage normal mode: %v", err)
+	}
 }
 
 func (h *Handler) handleChat(ctx context.Context, callbackID string, chatID int64, messageID int) {
@@ -1002,6 +1139,7 @@ func (h *Handler) handleBackMainDelete(ctx context.Context, callbackID string, c
 	if st.Data == nil {
 		st.Data = make(map[string]string)
 	}
+	delete(st.Data, stateKeyPhotoMode)
 	st.Step = "main_menu"
 	_ = h.Rd.Set(ctx, "bot:state:"+strconv.FormatInt(chatID, 10), st, defaultStateTTL)
 	h.sendMainMenu(ctx, chatID)
@@ -1284,9 +1422,25 @@ func (h *Handler) saveMediaAndPromptIfPresent(ctx context.Context, key string, c
 		return false
 	}
 
-	// При заданной модели — только промпт без референса
 	st, _, _ := h.Rd.Get(ctx, key)
-	if loadPhotoModel(st) != nil {
+	if isPhotoReferenceMode(st) && loadPhotoModel(st) == nil {
+		if len(msg.Photo) > 0 || strings.TrimSpace(msg.Text) != "" || strings.TrimSpace(msg.Caption) != "" {
+			go func() {
+				bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				defer cancel()
+				mID, _ := h.SendMessage(bgCtx, chatID, msgPhotoReferenceNeedModel)
+				if mID > 0 {
+					time.Sleep(5 * time.Second)
+					_ = h.deleteMessage(bgCtx, chatID, mID)
+				}
+			}()
+			return true
+		}
+		return false
+	}
+
+	// При заданной модели — только промпт без референса (в обычном режиме модель не используется)
+	if loadPhotoModel(st) != nil && !isPhotoNormalMode(st) {
 		prompt := strings.TrimSpace(msg.Text)
 		if len(msg.Photo) == 0 && prompt != "" {
 			h.dispatchPhotoTaskModelOnly(ctx, key, chatID, prompt)
@@ -1295,13 +1449,25 @@ func (h *Handler) saveMediaAndPromptIfPresent(ctx context.Context, key string, c
 	}
 
 	if len(msg.Photo) == 0 {
+		if isPhotoNormalMode(st) && strings.TrimSpace(msg.Text) != "" {
+			go func() {
+				bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				defer cancel()
+				mID, _ := h.SendMessage(bgCtx, chatID, msgPhotoNormalTextOnly)
+				if mID > 0 {
+					time.Sleep(5 * time.Second)
+					_ = h.deleteMessage(bgCtx, chatID, mID)
+				}
+			}()
+			return true
+		}
 		return false
 	}
 
 	fileID := msg.Photo[len(msg.Photo)-1].FileID
 
-	// С моделью — только одно фото референса, альбомы не допускаются
-	if loadPhotoModel(st) != nil && msg.MediaGroupID != "" {
+	// С моделью — только одно фото референса, альбомы не допускаются (не относится к обычному режиму)
+	if loadPhotoModel(st) != nil && !isPhotoNormalMode(st) && msg.MediaGroupID != "" {
 		_, _ = h.SendMessage(ctx, chatID, "С выбранной моделью можно отправить только одно фото референса. Подпись к нему можно не добавлять.")
 		return true
 	}
@@ -1311,8 +1477,22 @@ func (h *Handler) saveMediaAndPromptIfPresent(ctx context.Context, key string, c
 	}
 
 	caption := strings.TrimSpace(msg.Caption)
-	if caption == "" && loadPhotoModel(st) == nil {
-		return false
+	if caption == "" {
+		if isPhotoNormalMode(st) {
+			go func() {
+				bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				defer cancel()
+				mID, _ := h.SendMessage(bgCtx, chatID, msgPhotoNormalNeedCaption)
+				if mID > 0 {
+					time.Sleep(5 * time.Second)
+					_ = h.deleteMessage(bgCtx, chatID, mID)
+				}
+			}()
+			return true
+		}
+		if loadPhotoModel(st) == nil {
+			return false
+		}
 	}
 	h.dispatchPhotoTask(ctx, key, chatID, []string{fileID}, caption)
 	return true
@@ -1347,13 +1527,27 @@ func (h *Handler) handleMediaGroup(ctx context.Context, key string, chatID int64
 			if final == nil || len(final.FileIDs) == 0 {
 				return
 			}
+			bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			st, _, _ := h.Rd.Get(bgCtx, key)
+
 			if final.Caption == "" {
-				log.Printf("media group %s: no caption, skipping", groupID)
+				if isPhotoNormalMode(st) {
+					mID, _ := h.SendMessage(bgCtx, chatID, msgPhotoNormalNeedCaption)
+					if mID > 0 {
+						time.Sleep(5 * time.Second)
+						_ = h.deleteMessage(bgCtx, chatID, mID)
+					}
+				} else {
+					log.Printf("media group %s: no caption, skipping", groupID)
+				}
 				return
 			}
 
-			bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
+			if isPhotoReferenceMode(st) && loadPhotoModel(st) == nil {
+				_, _ = h.SendMessage(bgCtx, chatID, msgPhotoReferenceNeedModel)
+				return
+			}
 			h.dispatchPhotoTask(bgCtx, key, chatID, final.FileIDs, final.Caption)
 		}()
 	})
